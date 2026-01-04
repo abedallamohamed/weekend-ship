@@ -10,6 +10,7 @@
 		content: string;
 		projectPlan?: ProjectPlan;
 		conversationId?: string;  // Track which conversation this message belongs to
+		status?: 'pending' | 'sent' | 'error'; // Message status for user messages
 	}
 
 	let messages: ChatMessage[] = [];
@@ -17,12 +18,12 @@
 	let isLoading = true;
 	let isSending = false;
 	let messagesContainer: HTMLElement;
-	let planningMode: 'basic' | 'detailed' = 'basic'; // New mode selector
+	let planningMode: 'basic' | 'detailed' = 'basic'; // Mode selector
 	let sidebarOpen = true;
 
-	// Configura marked per il rendering corretto
+	// Configure marked for proper rendering
 	marked.setOptions({
-		breaks: true, // Rispetta i \n
+		breaks: true, // Respect \n line breaks
 		gfm: true // GitHub Flavored Markdown
 	});
 
@@ -43,12 +44,12 @@
 	async function scrollToUserMessage() {
 		await tick();
 		if (messagesContainer && messages.length >= 2) {
-			// Trova l'elemento del messaggio utente più recente (penultimo messaggio)
+			// Find the most recent user message element (second to last message)
 			const userMessages = messagesContainer.querySelectorAll('.message-wrapper.user');
 			const lastUserMessage = userMessages[userMessages.length - 1];
 			
 			if (lastUserMessage) {
-				// Scrolla in modo che il messaggio utente sia in cima al viewport
+				// Scroll so that the user message is at the top of viewport
 				const containerRect = messagesContainer.getBoundingClientRect();
 				const messageRect = lastUserMessage.getBoundingClientRect();
 				const scrollTop = messagesContainer.scrollTop + (messageRect.top - containerRect.top);
@@ -73,7 +74,7 @@
 					conversationId: conv.id
 				}
 			]);
-			// Scrolla istantaneamente alla fine dopo il caricamento
+			// Scroll instantly to bottom after loading
 			await scrollToBottom(false);
 		} catch (error) {
 			console.error('Error loading conversations:', error);
@@ -89,9 +90,10 @@
 		inputValue = '';
 		isSending = true;
 
-		// Aggiungi messaggio utente immediatamente
-		messages = [...messages, { role: 'user', content: userMessage }];
-		// Scrolla smooth dopo aggiunta messaggio utente
+		// Add user message immediately with pending status
+		const userMessageObj = { role: 'user' as const, content: userMessage, status: 'pending' as const };
+		messages = [...messages, userMessageObj];
+		// Smooth scroll after adding user message
 		await scrollToBottom(true);
 
 		try {
@@ -99,7 +101,15 @@
 				message: userMessage, 
 				mode: planningMode 
 			});
-			// Aggiungi risposta del bot con projectPlan e conversationId
+			
+			// Update user message status to 'sent'
+			messages = messages.map((msg, index) => 
+				index === messages.length - 1 && msg.role === 'user' 
+					? { ...msg, status: 'sent' as const }
+					: msg
+			);
+			
+			// Add bot response with projectPlan and conversationId
 			messages = [...messages, { 
 				role: 'assistant', 
 				content: response.botResponse,
@@ -108,9 +118,17 @@
 			}];
 		} catch (error) {
 			console.error('Error sending message:', error);
+			
+			// Update user message status to 'error'
+			messages = messages.map((msg, index) => 
+				index === messages.length - 1 && msg.role === 'user' 
+					? { ...msg, status: 'error' as const }
+					: msg
+			);
+			
 			messages = [...messages, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }];
 		} finally {
-			// Scrolla al messaggio utente per vedere l'inizio della conversazione
+			// Scroll to user message to see start of conversation
 			await scrollToUserMessage();
 			isSending = false;
 		}
@@ -201,11 +219,36 @@
 			<div class="empty">No conversations yet. Start chatting!</div>
 		{:else}
 			{#each messages as message}
-				<div class="message-wrapper {message.role}">
+				<div class="message-wrapper {message.role}" class:pending={message.status === 'pending'} class:error={message.status === 'error'}>
 					<div class="message {message.role}">
 						<div class="message-content">
 							{@html renderMarkdown(message.content)}
 						</div>
+						
+						{#if message.role === 'user' && message.status}
+							<div class="message-status">
+								{#if message.status === 'pending'}
+									<div class="status-indicator pending">
+										<div class="spinner"></div>
+										<span>Sending...</span>
+									</div>
+								{:else if message.status === 'sent'}
+									<div class="status-indicator sent">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<polyline points="20,6 9,17 4,12"></polyline>
+										</svg>
+									</div>
+								{:else if message.status === 'error'}
+									<div class="status-indicator error">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<circle cx="12" cy="12" r="10"></circle>
+											<line x1="15" y1="9" x2="9" y2="15"></line>
+											<line x1="9" y1="9" x2="15" y2="15"></line>
+										</svg>
+									</div>
+								{/if}
+							</div>
+						{/if}
 						
 						{#if message.projectPlan}
 							<div class="project-plan">

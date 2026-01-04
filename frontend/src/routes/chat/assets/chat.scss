@@ -102,9 +102,18 @@
 .message-wrapper {
 	display: flex;
 	width: 100%;
+	position: relative;
 
 	&.user {
 		justify-content: flex-end;
+		
+		&.pending {
+			opacity: 0.8;
+		}
+		
+		&.error {
+			opacity: 0.7;
+		}
 	}
 
 	&.assistant {
@@ -115,27 +124,88 @@
 .message {
 	display: inline-block;
 	padding: 16px;
-	border-radius: 8px;
+	border-radius: 12px;
 	max-width: 85%;
 	width: fit-content;
+	position: relative;
 
 	&.user {
-		background-color: #f7f7f8;
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		color: white;
+		box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 
 		.message-content {
-			color: #000;
+			color: white;
+			
+			p {
+				margin: 0;
+				line-height: 1.5;
+			}
+			
+			// Override markdown styling for user messages
+			* {
+				color: white !important;
+			}
 		}
 	}
 
 	&.assistant {
-		background-color: #f0f4ff;
-		border: 1px solid #e0e7ff;
+		background-color: #f8fafc;
+		border: 1px solid #e2e8f0;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
 		.message-content {
 			color: #374151;
 			line-height: 1.6;
 		}
 	}
+}
+
+.message-status {
+	position: absolute;
+	bottom: -24px;
+	right: 0;
+	
+	.status-indicator {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 12px;
+		color: #6b7280;
+		
+		&.pending {
+			.spinner {
+				width: 12px;
+				height: 12px;
+				border: 2px solid #e5e7eb;
+				border-top: 2px solid #667eea;
+				border-radius: 50%;
+				animation: spin 1s linear infinite;
+			}
+			
+			span {
+				color: #667eea;
+				font-weight: 500;
+			}
+		}
+		
+		&.sent {
+			svg {
+				color: #10b981;
+			}
+		}
+		
+		&.error {
+			svg {
+				color: #ef4444;
+			}
+		}
+	}
+}
+
+@keyframes spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
 }
 
 .message-content {
